@@ -1,0 +1,131 @@
+<?php
+
+class ProtectedMode extends WireData implements Module, ConfigurableModule {
+
+	/**
+	 * Basic information about module
+	 */
+	public static function getModuleInfo() {
+		return array(
+			'title' => 'Protected Mode',
+			'summary' => 'Allows you to put your site into protected mode so that users who are not logged in can only access the front-end of the site with a password.',
+			'href' => '',
+			'version' => 1,
+			'permanent' => false,
+			'autoload' => true,
+			'singular' => true,
+		);
+	}
+
+
+    /**
+     * Data as used by the get/set functions
+     *
+     */
+    protected $data = array();
+
+
+   /**
+     * Default configuration for module
+     *
+     */
+    static public function getDefaultData() {
+            return array(
+                "protectedMode" => 0,
+                "message" => "This site is currently in protected mode. You must log in to view the site."
+            );
+    }
+
+    /**
+     * Populate the default config data
+     *
+     */
+    public function __construct() {
+       foreach(self::getDefaultData() as $key => $value) {
+               $this->$key = $value;
+       }
+    }
+
+
+	/**
+	 * Initialize the module and setup hooks
+	 */
+	public function init() {
+		if($this->user->isLoggedin() || !$this->data['protectedMode']) return; //if logged in or protectedModed not checked, escape now
+		$this->addHookAfter('Page::render', $this, 'protectedCheck');
+	}
+
+
+	/**
+	 * Checks if we're in protected mode shows login form if necessary
+	 *
+	 * @param HookEvent $event
+	 */
+	public function protectedCheck(HookEvent $event) {
+
+		if($this->page->url != $this->config->urls->admin."login/")	{
+
+            $event->replace = true;
+
+            if($this->input->post->username && $this->input->post->pass) {
+                $username = $this->sanitizer->username($this->input->post->username);
+                $this->session->login($username, $this->input->post->pass);
+            }
+
+            if(!$this->user->isLoggedin()) {
+                $event->return = "
+                    <p class='protectedModeMessage'>{$this->data['message']}</p>
+                    <form id='protectedModeLogin' action='./' method='post'>
+                    <p>
+                    <label>Username <input type='text' name='username'></label>
+                    <label>Password <input type='password' name='pass'></label>
+                    </p>
+                    <input type='submit' name='login' value='Login'>
+                    </form>
+                ";
+            }
+        }
+	}
+
+
+    /**
+     * Return an InputfieldsWrapper of Inputfields used to configure the class
+     *
+     * @param array $data Array of config values indexed by field name
+     * @return InputfieldsWrapper
+     *
+     */
+    public static function getModuleConfigInputfields(array $data) {
+
+        $data = array_merge(self::getDefaultData(), $data);
+
+        $wrapper = new InputFieldWrapper();
+
+        $f = wire('modules')->get("InputfieldMarkup");
+        $f->attr('name', 'instructions');
+        $f->label = __('Instructions');
+        $f->value = "
+        <p>In protected mode, the front-end of this web site will not be accessible unless the user is logged in.</p>
+        <p>If you want non-admin visitors to view the site you should create a new generic user with only the guest role and provide them with those login details.</p>
+        <p>To keep the Processwire admin interface and URL hidden from the user, this module uses its own simple login field. You may wish to add some CSS classes to your site to style it. The form has a class of: protectedModeLogin</p>
+        ";
+        $wrapper->add($f);
+
+        $f = wire('modules')->get("InputfieldCheckbox");
+        $f->attr('name', 'protectedMode');
+        $f->label = __('Protected Mode');
+        $f->description = __('If enabled, only logged in users will be able to view the front-end of the site.');
+        $f->attr('checked', $data['protectedMode'] ? 'checked' : '' );
+        $wrapper->add($f);
+
+        $f = wire('modules')->get("InputfieldTextarea");
+        $f->attr('name', 'message');
+        $f->label = __('Message');
+        $f->description = __('This message will be displayed to users when they try to view the site. It will be wrapped in a <p> class of protectedModeMessage');
+        $f->value = $data['message'];
+        $wrapper->add($f);
+
+        return $wrapper;
+    }
+
+}
