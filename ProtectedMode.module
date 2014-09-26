@@ -10,7 +10,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
 			'title' => 'Protected Mode',
 			'summary' => 'Allows you to put your site into protected mode so that users who are not logged in can only access the front-end of the site with a password.',
 			'href' => '',
-			'version' => 1,
+			'version' => 2,
 			'permanent' => false,
 			'autoload' => true,
 			'singular' => true,
@@ -32,7 +32,8 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
     static public function getDefaultData() {
             return array(
                 "protectedMode" => 0,
-                "message" => "This site is currently in protected mode. You must log in to view the site."
+                "message" => "This site is currently in protected mode. You must log in to view the site.",
+                "logincss" => ""
             );
     }
 
@@ -74,14 +75,26 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
 
             if(!$this->user->isLoggedin()) {
                 $event->return = "
-                    <p class='protectedModeMessage'>{$this->data['message']}</p>
-                    <form id='protectedModeLogin' action='./' method='post'>
-                    <p>
-                    <label>Username <input type='text' name='username'></label>
-                    <label>Password <input type='password' name='pass'></label>
-                    </p>
-                    <input type='submit' name='login' value='Login'>
-                    </form>
+                <!DOCTYPE html>
+                    <head>
+                        <meta charset='utf-8' />
+                        <style>
+                            {$this->data['logincss']}
+                        </style>
+                    </head>
+                    <body>
+                        <div id='protectedMode'>
+                            <p>{$this->data['message']}</p>
+                            <form action='./' method='post'>
+                            <p>
+                            <label>Username <input type='text' name='username'></label>
+                            <label>Password <input type='password' name='pass'></label>
+                            </p>
+                            <input type='submit' name='login' value='Login'>
+                            </form>
+                        </div>
+                    </body>
+                </html>
                 ";
             }
         }
@@ -107,7 +120,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
         $f->value = "
         <p>In protected mode, the front-end of this web site will not be accessible unless the user is logged in.</p>
         <p>If you want non-admin visitors to view the site you should create a new generic user with only the guest role and provide them with those login details.</p>
-        <p>To keep the Processwire admin interface and URL hidden from the user, this module uses its own simple login field. You may wish to add some CSS classes to your site to style it. The form has a class of: protectedModeLogin</p>
+        <p>To keep the Processwire admin interface and URL hidden from the user, this module uses its own simple login form.</p>
         ";
         $wrapper->add($f);
 
@@ -121,8 +134,15 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
         $f = wire('modules')->get("InputfieldTextarea");
         $f->attr('name', 'message');
         $f->label = __('Message');
-        $f->description = __('This message will be displayed to users when they try to view the site. It will be wrapped in a <p> class of protectedModeMessage');
+        $f->description = __('This message will be displayed to users when they try to view the site.');
         $f->value = $data['message'];
+        $wrapper->add($f);
+
+        $f = wire('modules')->get("InputfieldTextarea");
+        $f->attr('name', 'logincss');
+        $f->label = __('CSS');
+        $f->description = __('You can optional choose to style the login form with CSS here. The form is wrapped in a div with: #protectedMode');
+        $f->value = $data['logincss'];
         $wrapper->add($f);
 
         return $wrapper;
