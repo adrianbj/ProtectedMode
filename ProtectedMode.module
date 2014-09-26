@@ -10,7 +10,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
 			'title' => 'Protected Mode',
 			'summary' => 'Allows you to put your site into protected mode so that users who are not logged in can only access the front-end of the site with a password.',
 			'href' => '',
-			'version' => 2,
+			'version' => 3,
 			'permanent' => false,
 			'autoload' => true,
 			'singular' => true,
@@ -141,7 +141,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
         $f = wire('modules')->get("InputfieldTextarea");
         $f->attr('name', 'logincss');
         $f->label = __('CSS');
-        $f->description = __('You can optional choose to style the login form with CSS here. The form is wrapped in a div with: #protectedMode');
+        $f->description = __('You can optionally choose to style the login form with CSS here. The form is wrapped in a div with: #protectedMode');
         $f->value = $data['logincss'];
         $wrapper->add($f);
 
