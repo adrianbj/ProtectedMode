@@ -1,5 +1,20 @@
 <?php
 
+/**
+ * ProcessWire module for putting your site into protected mode so that users must be logged in to access the front-end of the site.
+ * by Adrian Jones
+ *
+ * Put your site in protected mode so that users must be logged in to access the front-end of the site.
+ *
+ * ProcessWire 2.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ *
+ */
+
 class ProtectedMode extends WireData implements Module, ConfigurableModule {
 
 	/**
@@ -8,9 +23,9 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Protected Mode',
-			'summary' => 'Allows you to put your site into protected mode so that users who are not logged in can only access the front-end of the site with a password.',
+			'summary' => 'Allows you to put your site into protected mode so that users must be logged in to access the front-end of the site.',
 			'href' => '',
-			'version' => 3,
+			'version' => 4,
 			'permanent' => false,
 			'autoload' => true,
 			'singular' => true,
