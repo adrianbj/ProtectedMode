@@ -7,9 +7,9 @@ Very handy during development to allow the clients and testers to view the site,
 
 ###Config Settings
 
-Checkbox to enable/disable the protected mode
-Textarea field for message to be displayed to visitors
-Textarea for CSS to style the login form if you wish
+* Checkbox to enable/disable the protected mode
+* Textarea field for message to be displayed to visitors
+* Textarea for CSS to style the login form if you wish
 
 
 ## License
