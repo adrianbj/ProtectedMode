@@ -25,7 +25,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
 			'title' => 'Protected Mode',
 			'summary' => 'Allows you to put your site into protected mode so that users must be logged in to access the front-end of the site.',
 			'href' => 'http://modules.processwire.com/modules/protected-mode/',
-			'version' => 8,
+			'version' => 9,
 			'permanent' => false,
 			'autoload' => true,
 			'singular' => true,
@@ -175,7 +175,7 @@ input[type='password'] {
 
         $data = array_merge(self::getDefaultData(), $data);
 
-        $wrapper = new InputFieldWrapper();
+        $wrapper = new InputfieldWrapper();
 
         $f = wire('modules')->get("InputfieldMarkup");
         $f->attr('name', 'instructions');
