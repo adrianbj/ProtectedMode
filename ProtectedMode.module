@@ -24,6 +24,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
 		return array(
 			'title' => 'Protected Mode',
 			'summary' => 'Allows you to put your site into protected mode so that users must be logged in to access the front-end of the site.',
+            'author' => 'Adrian Jones',
 			'href' => 'http://modules.processwire.com/modules/protected-mode/',
 			'version' => 9,
 			'permanent' => false,
