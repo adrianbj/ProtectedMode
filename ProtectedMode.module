@@ -3,7 +3,7 @@
 /**
  * ProcessWire module for putting your site into protected mode so that users must be logged in to access the front-end of the site.
  * by Adrian Jones
- *
+ * 
  * Put your site in protected mode so that users must be logged in to access the front-end of the site.
  *
  * ProcessWire 2.x
@@ -12,6 +12,8 @@
  *
  * http://www.processwire.com
  * http://www.ryancramer.com
+ *
+ * Big thanks to Horst Nogajski (@horst-n) for significant code contributions related to the maintenance mode option including 503 / Retry-After headers.
  *
  */
 
@@ -26,7 +28,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
 			'summary' => 'Allows you to put your site into protected mode so that users must be logged in to access the front-end of the site.',
             'author' => 'Adrian Jones',
 			'href' => 'http://modules.processwire.com/modules/protected-mode/',
-			'version' => 9,
+			'version' => 10,
 			'permanent' => false,
 			'autoload' => true,
 			'singular' => true,
@@ -49,6 +51,11 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
     static public function getDefaultData() {
             return array(
                 "protectedMode" => 0,
+                "send503header" => 0,
+                "retryAfter_inputdate" => "Y-m-d",
+                "retryAfter_inputtime" => "H:i",
+                "retryAfter_autoIncrease" => 60,
+                "retryAfter" => time(),                
                 "message" => "This site is currently in protected mode. You must log in to view the site.",
                 "logincss" => "
 .protected-mode-container {
@@ -68,6 +75,7 @@ p, legend {
     display: block;
     width: 100%;
     margin-bottom: 1rem;
+    line-height: 1.4;
     color: #6F6F6F;
 }
 
@@ -140,10 +148,22 @@ input[type='password'] {
                 $this->session->redirect($this->page->url);
             }
             else{
+
+                $timestamp = (int) $this->data['retryAfter'];
+                $timestamp = time() >= $timestamp ? time() + 300 + intval(60 * (int)$this->data['retryAfter_autoIncrease']) : $timestamp;  // fallback if we already have reached the estimated time
+                $retryAfterString = date($this->data['retryAfter_inputdate'] . ' @ ' . $this->data['retryAfter_inputtime'], $timestamp);   // make a locale Date / Time for displaying to human visitors
+                $message = str_replace('{{RETRYAFTER}}', $retryAfterString, $this->data['message']);                                       // add the RetryAfter-Time to the user message
+
+                if ($this->data['send503header'] && !headers_sent()) {
+                    header('HTTP/1.1 503 Service Temporarily Unavailable');                 // tell the Searchbots that we are in maintenance mode
+                    header('Retry-After: ' . gmdate('D, j M Y H:i:s \G\M\T', $timestamp));  // make a GMT Date to tell the Searchbots when they may come back again
+                }
+
                 $event->return = "
                 <!DOCTYPE html>
                     <head>
                         <meta charset='utf-8' />
+                        <title>protected :: {$this->page->title}</title>
                         <style>
                             {$this->data['logincss']}
                         </style>
@@ -151,10 +171,14 @@ input[type='password'] {
                     <body>
                         <div class='protected-mode-container'>
                             <form class='protectedModeForm' action='./' method='post'>
-                                    <legend>{$this->data['message']}</legend>
-                                    <input type='text' name='username' placeholder='Username'>
-                                    <input type='password' name='pass' placeholder='Password'>
-                                    <button type='submit' name='login'>Login</button>
+                                    <legend>{$message}</legend>
+                                    <p>
+                                        <input type='text' name='username' placeholder='Username'>
+                                        <input type='password' name='pass' placeholder='Password'>
+                                    <p>
+                                    <p>    
+                                        <button type='submit' name='login'>Login</button>
+                                    </p>
                             </form>
                         </div>
                     </body>
@@ -190,24 +214,82 @@ input[type='password'] {
 
         $f = wire('modules')->get("InputfieldCheckbox");
         $f->attr('name', 'protectedMode');
-        $f->label = __('Protected Mode');
+        $f->label = __('Protected / Maintenance Mode');
         $f->description = __('If enabled, only logged in users will be able to view the front-end of the site.');
         $f->attr('checked', $data['protectedMode'] ? 'checked' : '' );
         $wrapper->add($f);
 
-        $f = wire('modules')->get("InputfieldTextarea");
-        $f->attr('name', 'message');
-        $f->label = __('Message');
-        $f->description = __('This message will be displayed to users when they try to view the site.');
-        $f->value = $data['message'];
+        $f = wire('modules')->get("InputfieldCheckbox");
+        $f->attr('name', 'send503header');
+        $f->label = __('Send 503 / Retry-After headers');
+        $f->description = __('The 503 (Service Temporarily Unavailable) header is highly recommended if this is temporary protection / maintenance of a normally publicly accessible site.');
+        $f->showIf = "protectedMode=1";        
+        $f->attr('checked', $data['send503header'] ? 'checked' : '' );
+        $wrapper->add($f);        
+
+        $f = wire('modules')->get("InputfieldDatetime");
+        $f->attr('name', 'retryAfter');
+        $f->label = __('Estimated end of maintenance');
+        $f->description = __('This will be used to populate the "Retry-After" header.');
+        $f->attr('value', 1===(int)$data['protectedMode'] && $data['retryAfter'] ? $data['retryAfter'] : time());
+        $f->dateInputFormat = $data['retryAfter_inputdate'];
+        $f->timeInputFormat = $data['retryAfter_inputtime'];
+        $f->datepicker = 1;
+        $f->defaultToday = 1;
+        $f->showIf = "protectedMode=1, send503header=1";
+        $f->requiredIf = "send503header=1";
         $wrapper->add($f);
 
-        $f = wire('modules')->get("InputfieldTextarea");
-        $f->attr('name', 'logincss');
-        $f->label = __('CSS');
-        $f->description = __("You can change the style of the login form here.");
-        $f->value = $data['logincss'];
-        $wrapper->add($f);
+        $fieldset = wire('modules')->get('InputfieldFieldset');
+        $fieldset->label = __('Advanced Configuration');
+        $fieldset->attr('name', '_advanced_configuration');
+        $fieldset->collapsed = Inputfield::collapsedYes;
+
+            $f = wire('modules')->get("InputfieldText");
+            $f->attr('name', 'retryAfter_inputdate');
+            $f->label = __('Inputformat for Date in the DateTime-field');
+            $f->description = __('Valid are all options from PHP date() function, for example m-d-Y');
+            $f->value = $data['retryAfter_inputdate'];
+            $f->columnWidth = 30;
+            $fieldset->add($f);
+
+            $f = wire('modules')->get("InputfieldText");
+            $f->attr('name', 'retryAfter_inputtime');
+            $f->label = __('Inputformat for Time in the DateTime-field');
+            $f->description = __('Valid are all options from PHP date() function, for example H:i');
+            $f->value = $data['retryAfter_inputtime'];
+            $f->columnWidth = 30;
+            $fieldset->add($f);
+
+            $f = wire('modules')->get("InputfieldInteger");
+            $f->attr('name', 'retryAfter_autoIncrease');
+            $f->label = __('Auto Increase Value');
+            $f->description = __('If the estimated time for maintenance is reached, but site is still in Maintenance Mode, add this amount of minutes to the current time.');
+            $f->value = $data['retryAfter_autoIncrease'];
+            $f->columnWidth = 40;
+            $fieldset->add($f);
+
+            $f = wire('modules')->get("InputfieldTextarea");
+            $f->attr('name', 'message');
+            $f->label = __('Message');
+            $f->description = __('This message will be displayed to users when they try to view the site.');
+            $f->notes = __('If using this as a maintenance mode tool, you may want something like this in your message: "This site is in maintenance mode! Estimated time to finish maintenance is: {{RETRYAFTER}}<br />But if you have an account you may log in to the site anyways."');
+            $f->value = $data['message'];
+            $fieldset->add($f);
+
+            $loginCss = trim($data['logincss']);
+            if (empty($loginCss)) {
+                $a = self::getDefaultData();
+                $loginCss = $a['logincss'];
+            }
+            $f = wire('modules')->get("InputfieldTextarea");
+            $f->attr('name', 'logincss');
+            $f->label = __('CSS');
+            $f->description = __("You can change the style of the login form here.");
+            $f->value = $loginCss;
+            $fieldset->add($f);
+
+        $wrapper->add($fieldset);
 
         return $wrapper;
     }
