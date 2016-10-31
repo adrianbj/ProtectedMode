@@ -28,7 +28,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
             'summary' => 'Allows you to put your site into protected mode so that users must be logged in to access the front-end of the site.',
             'author' => 'Adrian Jones',
             'href' => 'http://modules.processwire.com/modules/protected-mode/',
-            'version' => 11,
+            'version' => 12,
             'permanent' => false,
             'autoload' => true,
             'singular' => true,
@@ -149,10 +149,19 @@ input[type='password'] {
                 $this->session->redirect(htmlspecialchars($_SERVER['REQUEST_URI']));
             }
             else{
+
+                if($this->wire('languages')) {
+                    $userLanguage = $this->wire('user')->language;
+                    $lang = $userLanguage->isDefault() ? '' : "__$userLanguage->id";
+                }
+                else {
+                    $lang = '';
+                }
+
                 $timestamp = (int) $this->data['retryAfter'];
                 $timestamp = time() >= $timestamp ? time() + 300 + intval(60 * (int)$this->data['retryAfter_autoIncrease']) : $timestamp;  // fallback if we already have reached the estimated time
                 $retryAfterString = date($this->data['retryAfter_inputdate'] . ' @ ' . $this->data['retryAfter_inputtime'], $timestamp);   // make a locale Date / Time for displaying to human visitors
-                $message = ($this->session->loginFailed ? "<p>" . __("Login Failed, please try again!") . "</p>" : "") . str_replace('{{RETRYAFTER}}', $retryAfterString, $this->data['message']);                                       // add the RetryAfter-Time to the user message
+                $message = ($this->session->loginFailed ? "<p>" . __("Login Failed, please try again!") . "</p>" : "") . str_replace('{{RETRYAFTER}}', $retryAfterString, $this->data['message'.$lang]);                                       // add the RetryAfter-Time to the user message
 
                 if ($this->data['send503header'] && !headers_sent()) {
                     header('HTTP/1.1 503 Service Temporarily Unavailable');                 // tell the Searchbots that we are in maintenance mode
@@ -274,6 +283,7 @@ input[type='password'] {
             $f = wire('modules')->get("InputfieldTextarea");
             $f->attr('name', 'message');
             $f->label = __('Message');
+            $f->useLanguages = true;
             $f->description = __('This message will be displayed to users when they try to view the site.');
             $f->notes = __('If using this as a maintenance mode tool, you may want something like this in your message: "This site is in maintenance mode! Estimated time to finish maintenance is: {{RETRYAFTER}}<br />But if you have an account you may log in to the site anyways."');
             $f->value = $data['message'];
