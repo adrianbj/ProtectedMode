@@ -28,7 +28,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
             'summary' => 'Allows you to put your site into protected mode so that users must be logged in to access the front-end of the site.',
             'author' => 'Adrian Jones',
             'href' => 'http://modules.processwire.com/modules/protected-mode/',
-            'version' => 12,
+            'version' => 13,
             'permanent' => false,
             'autoload' => true,
             'singular' => true,
@@ -57,6 +57,9 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
                 "retryAfter_autoIncrease" => 60,
                 "retryAfter" => time(),                
                 "message" => "This site is currently in protected mode. You must log in to view the site.",
+                "usernamePlaceholder" => "Username",
+                "passwordPlaceholder" => "Password",
+                "loginButtonText" => "Login",
                 "logincss" => "
 .protected-mode-container {
     width: 400px;
@@ -142,6 +145,14 @@ input[type='password'] {
 
         if($this->page->url != $this->config->urls->admin."login/") {
 
+            if($this->wire('languages')) {
+                $userLanguage = $this->wire('user')->language;
+                $lang = $userLanguage->isDefault() ? '' : "__$userLanguage->id";
+            }
+            else {
+                $lang = '';
+            }
+
             if($this->input->post->username && $this->input->post->pass) {
                 $username = $this->sanitizer->username($this->input->post->username);
                 $user = $this->session->login($username, $this->input->post->pass);
@@ -149,19 +160,10 @@ input[type='password'] {
                 $this->session->redirect(htmlspecialchars($_SERVER['REQUEST_URI']));
             }
             else{
-
-                if($this->wire('languages')) {
-                    $userLanguage = $this->wire('user')->language;
-                    $lang = $userLanguage->isDefault() ? '' : "__$userLanguage->id";
-                }
-                else {
-                    $lang = '';
-                }
-
                 $timestamp = (int) $this->data['retryAfter'];
                 $timestamp = time() >= $timestamp ? time() + 300 + intval(60 * (int)$this->data['retryAfter_autoIncrease']) : $timestamp;  // fallback if we already have reached the estimated time
                 $retryAfterString = date($this->data['retryAfter_inputdate'] . ' @ ' . $this->data['retryAfter_inputtime'], $timestamp);   // make a locale Date / Time for displaying to human visitors
-                $message = ($this->session->loginFailed ? "<p>" . __("Login Failed, please try again!") . "</p>" : "") . str_replace('{{RETRYAFTER}}', $retryAfterString, $this->data['message'.$lang]);                                       // add the RetryAfter-Time to the user message
+                $message = ($this->session->loginFailed ? "<p>" . __("Login Failed, please try again!") . "</p>" : "") . str_replace('{{RETRYAFTER}}', $retryAfterString, ($this->data['message'.$lang] ? $this->data['message'.$lang] : $this->data['message'])); // add the RetryAfter-Time to the user message
 
                 if ($this->data['send503header'] && !headers_sent()) {
                     header('HTTP/1.1 503 Service Temporarily Unavailable');                 // tell the Searchbots that we are in maintenance mode
@@ -184,11 +186,11 @@ input[type='password'] {
                             <form class='protectedModeForm' action='".htmlspecialchars($_SERVER['REQUEST_URI'])."' method='post'>
                                     <legend>{$message}</legend>
                                     <p>
-                                        <input type='text' name='username' placeholder='Username'>
-                                        <input type='password' name='pass' placeholder='Password'>
+                                        <input type='text' name='username' placeholder='".($this->data['usernamePlaceholder'.$lang] ? $this->data['usernamePlaceholder'.$lang] : $this->data['usernamePlaceholder'])."'>
+                                        <input type='password' name='pass' placeholder='".($this->data['passwordPlaceholder'.$lang] ? $this->data['passwordPlaceholder'.$lang] : $this->data['passwordPlaceholder'])."'>
                                     <p>
                                     <p>    
-                                        <button type='submit' name='login'>Login</button>
+                                        <button type='submit' name='login'>".($this->data['loginButtonText'.$lang] ? $this->data['loginButtonText'.$lang] : $this->data['loginButtonText'])."</button>
                                     </p>
                             </form>
                         </div>
@@ -288,6 +290,33 @@ input[type='password'] {
             $f->notes = __('If using this as a maintenance mode tool, you may want something like this in your message: "This site is in maintenance mode! Estimated time to finish maintenance is: {{RETRYAFTER}}<br />But if you have an account you may log in to the site anyways."');
             $f->value = $data['message'];
             $fieldset->add($f);
+
+            $f = wire('modules')->get("InputfieldText");
+            $f->attr('name', 'usernamePlaceholder');
+            $f->label = __('Username Placeholder');
+            $f->useLanguages = true;
+            $f->description = __('By default this will be "Username".');
+            $f->value = $data['usernamePlaceholder'];
+            $f->columnWidth = 33;            
+            $fieldset->add($f);
+
+            $f = wire('modules')->get("InputfieldText");
+            $f->attr('name', 'passwordPlaceholder');
+            $f->label = __('Password Placeholder');
+            $f->useLanguages = true;
+            $f->description = __('By default this will be "Password".');
+            $f->value = $data['passwordPlaceholder'];
+            $f->columnWidth = 34;            
+            $fieldset->add($f);
+
+            $f = wire('modules')->get("InputfieldText");
+            $f->attr('name', 'loginButtonText');
+            $f->label = __('Login Button Text');
+            $f->useLanguages = true;
+            $f->description = __('By default this will be "Login".');
+            $f->value = $data['loginButtonText'];
+            $f->columnWidth = 33;            
+            $fieldset->add($f);                                    
 
             $loginCss = trim($data['logincss']);
             if (empty($loginCss)) {
