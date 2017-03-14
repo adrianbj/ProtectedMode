@@ -3,7 +3,7 @@
 /**
  * ProcessWire module for putting your site into protected mode so that users must be logged in to access the front-end of the site.
  * by Adrian Jones
- * 
+ *
  * Put your site in protected mode so that users must be logged in to access the front-end of the site.
  *
  * ProcessWire 2.x
@@ -28,7 +28,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
             'summary' => 'Allows you to put your site into protected mode so that users must be logged in to access the front-end of the site.',
             'author' => 'Adrian Jones',
             'href' => 'http://modules.processwire.com/modules/protected-mode/',
-            'version' => 13,
+            'version' => '1.0.0',
             'permanent' => false,
             'autoload' => true,
             'singular' => true,
@@ -55,7 +55,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
                 "retryAfter_inputdate" => "Y-m-d",
                 "retryAfter_inputtime" => "H:i",
                 "retryAfter_autoIncrease" => 60,
-                "retryAfter" => time(),                
+                "retryAfter" => time(),
                 "message" => "This site is currently in protected mode. You must log in to view the site.",
                 "usernamePlaceholder" => "Username",
                 "passwordPlaceholder" => "Password",
@@ -131,8 +131,8 @@ input[type='password'] {
      * Initialize the module and setup hooks
      */
     public function init() {
-        if($this->user->isLoggedin() || !$this->data['protectedMode']) return; //if logged in or protectedModed not checked, escape now
-        $this->addHookAfter('Page::render', $this, 'protectedCheck');
+        if($this->wire('user')->isLoggedin() || !$this->data['protectedMode']) return; //if logged in or protectedModed not checked, escape now
+        $this->addHookAfter('Page::render', $this, 'protectedCheck', array('priority'=>1000));
     }
 
 
@@ -143,7 +143,7 @@ input[type='password'] {
      */
     public function protectedCheck(HookEvent $event) {
 
-        if($this->page->url != $this->config->urls->admin."login/") {
+        if($this->wire('page')->url != $this->wire('config')->urls->admin."login/") {
 
             if($this->wire('languages')) {
                 $userLanguage = $this->wire('user')->language;
@@ -153,32 +153,32 @@ input[type='password'] {
                 $lang = '';
             }
 
-            if($this->input->post->username && $this->input->post->pass) {
-                $username = $this->sanitizer->username($this->input->post->username);
-                $user = $this->session->login($username, $this->input->post->pass);
-                if(!$user) $this->session->loginFailed = true;
-                $this->session->redirect(htmlspecialchars($_SERVER['REQUEST_URI']));
+            if($this->wire('input')->post->username && $this->wire('input')->post->pass) {
+                $username = $this->wire('sanitizer')->username($this->wire('input')->post->username);
+                $user = $this->wire('session')->login($username, $this->wire('input')->post->pass);
+                if(!$user) $this->wire('session')->loginFailed = true;
+                $this->wire('session')->redirect(htmlspecialchars($_SERVER['REQUEST_URI']));
             }
             else{
                 $timestamp = (int) $this->data['retryAfter'];
                 $timestamp = time() >= $timestamp ? time() + 300 + intval(60 * (int)$this->data['retryAfter_autoIncrease']) : $timestamp;  // fallback if we already have reached the estimated time
                 $retryAfterString = date($this->data['retryAfter_inputdate'] . ' @ ' . $this->data['retryAfter_inputtime'], $timestamp);   // make a locale Date / Time for displaying to human visitors
-                $message = ($this->session->loginFailed ? "<p>" . __("Login Failed, please try again!") . "</p>" : "") . str_replace('{{RETRYAFTER}}', $retryAfterString, ($this->data['message'.$lang] ? $this->data['message'.$lang] : $this->data['message'])); // add the RetryAfter-Time to the user message
+                $message = ($this->wire('session')->loginFailed ? "<p>" . __("Login Failed, please try again!") . "</p>" : "") . str_replace('{{RETRYAFTER}}', $retryAfterString, ($this->data['message'.$lang] ? $this->data['message'.$lang] : $this->data['message'])); // add the RetryAfter-Time to the user message
 
                 if ($this->data['send503header'] && !headers_sent()) {
                     header('HTTP/1.1 503 Service Temporarily Unavailable');                 // tell the Searchbots that we are in maintenance mode
                     header('Retry-After: ' . gmdate('D, j M Y H:i:s \G\M\T', $timestamp));  // make a GMT Date to tell the Searchbots when they may come back again
                 }
 
-                if($this->session->loginFailed) $this->session->loginFailed = false;                
+                if($this->wire('session')->loginFailed) $this->wire('session')->loginFailed = false;
 
                 $event->return = "
                 <!DOCTYPE html>
                     <head>
                         <meta charset='utf-8' />
-                        <title>protected :: {$this->page->title}</title>
+                        <title>protected :: ".$this->wire('page')->title."</title>
                         <style>
-                            {$this->data['logincss']}
+                            ".$this->data['logincss']."
                         </style>
                     </head>
                     <body>
@@ -189,7 +189,7 @@ input[type='password'] {
                                         <input type='text' name='username' placeholder='".($this->data['usernamePlaceholder'.$lang] ? $this->data['usernamePlaceholder'.$lang] : $this->data['usernamePlaceholder'])."'>
                                         <input type='password' name='pass' placeholder='".($this->data['passwordPlaceholder'.$lang] ? $this->data['passwordPlaceholder'.$lang] : $this->data['passwordPlaceholder'])."'>
                                     <p>
-                                    <p>    
+                                    <p>
                                         <button type='submit' name='login'>".($this->data['loginButtonText'.$lang] ? $this->data['loginButtonText'.$lang] : $this->data['loginButtonText'])."</button>
                                     </p>
                             </form>
@@ -209,13 +209,13 @@ input[type='password'] {
      * @return InputfieldsWrapper
      *
      */
-    public static function getModuleConfigInputfields(array $data) {
+    public function getModuleConfigInputfields(array $data) {
 
         $data = array_merge(self::getDefaultData(), $data);
 
         $wrapper = new InputfieldWrapper();
 
-        $f = wire('modules')->get("InputfieldMarkup");
+        $f = $this->wire('modules')->get("InputfieldMarkup");
         $f->attr('name', 'instructions');
         $f->label = __('Instructions');
         $f->value = "
@@ -225,22 +225,22 @@ input[type='password'] {
         ";
         $wrapper->add($f);
 
-        $f = wire('modules')->get("InputfieldCheckbox");
+        $f = $this->wire('modules')->get("InputfieldCheckbox");
         $f->attr('name', 'protectedMode');
         $f->label = __('Protected / Maintenance Mode');
         $f->description = __('If enabled, only logged in users will be able to view the front-end of the site.');
         $f->attr('checked', $data['protectedMode'] ? 'checked' : '' );
         $wrapper->add($f);
 
-        $f = wire('modules')->get("InputfieldCheckbox");
+        $f = $this->wire('modules')->get("InputfieldCheckbox");
         $f->attr('name', 'send503header');
         $f->label = __('Send 503 / Retry-After headers');
         $f->description = __('The 503 (Service Temporarily Unavailable) header is highly recommended if this is temporary protection / maintenance of a normally publicly accessible site.');
-        $f->showIf = "protectedMode=1";        
+        $f->showIf = "protectedMode=1";
         $f->attr('checked', $data['send503header'] ? 'checked' : '' );
-        $wrapper->add($f);        
+        $wrapper->add($f);
 
-        $f = wire('modules')->get("InputfieldDatetime");
+        $f = $this->wire('modules')->get("InputfieldDatetime");
         $f->attr('name', 'retryAfter');
         $f->label = __('Estimated end of maintenance');
         $f->description = __('This will be used to populate the "Retry-After" header.');
@@ -253,12 +253,12 @@ input[type='password'] {
         $f->requiredIf = "send503header=1";
         $wrapper->add($f);
 
-        $fieldset = wire('modules')->get('InputfieldFieldset');
+        $fieldset = $this->wire('modules')->get('InputfieldFieldset');
         $fieldset->label = __('Advanced Configuration');
         $fieldset->attr('name', '_advanced_configuration');
         $fieldset->collapsed = Inputfield::collapsedYes;
 
-            $f = wire('modules')->get("InputfieldText");
+            $f = $this->wire('modules')->get("InputfieldText");
             $f->attr('name', 'retryAfter_inputdate');
             $f->label = __('Inputformat for Date in the DateTime-field');
             $f->description = __('Valid are all options from PHP date() function, for example m-d-Y');
@@ -266,7 +266,7 @@ input[type='password'] {
             $f->columnWidth = 30;
             $fieldset->add($f);
 
-            $f = wire('modules')->get("InputfieldText");
+            $f = $this->wire('modules')->get("InputfieldText");
             $f->attr('name', 'retryAfter_inputtime');
             $f->label = __('Inputformat for Time in the DateTime-field');
             $f->description = __('Valid are all options from PHP date() function, for example H:i');
@@ -274,7 +274,7 @@ input[type='password'] {
             $f->columnWidth = 30;
             $fieldset->add($f);
 
-            $f = wire('modules')->get("InputfieldInteger");
+            $f = $this->wire('modules')->get("InputfieldInteger");
             $f->attr('name', 'retryAfter_autoIncrease');
             $f->label = __('Auto Increase Value');
             $f->description = __('If the estimated time for maintenance is reached, but site is still in Maintenance Mode, add this amount of minutes to the current time.');
@@ -282,7 +282,7 @@ input[type='password'] {
             $f->columnWidth = 40;
             $fieldset->add($f);
 
-            $f = wire('modules')->get("InputfieldTextarea");
+            $f = $this->wire('modules')->get("InputfieldTextarea");
             $f->attr('name', 'message');
             $f->label = __('Message');
             $f->useLanguages = true;
@@ -291,39 +291,39 @@ input[type='password'] {
             $f->value = $data['message'];
             $fieldset->add($f);
 
-            $f = wire('modules')->get("InputfieldText");
+            $f = $this->wire('modules')->get("InputfieldText");
             $f->attr('name', 'usernamePlaceholder');
             $f->label = __('Username Placeholder');
             $f->useLanguages = true;
             $f->description = __('By default this will be "Username".');
             $f->value = $data['usernamePlaceholder'];
-            $f->columnWidth = 33;            
+            $f->columnWidth = 33;
             $fieldset->add($f);
 
-            $f = wire('modules')->get("InputfieldText");
+            $f = $this->wire('modules')->get("InputfieldText");
             $f->attr('name', 'passwordPlaceholder');
             $f->label = __('Password Placeholder');
             $f->useLanguages = true;
             $f->description = __('By default this will be "Password".');
             $f->value = $data['passwordPlaceholder'];
-            $f->columnWidth = 34;            
+            $f->columnWidth = 34;
             $fieldset->add($f);
 
-            $f = wire('modules')->get("InputfieldText");
+            $f = $this->wire('modules')->get("InputfieldText");
             $f->attr('name', 'loginButtonText');
             $f->label = __('Login Button Text');
             $f->useLanguages = true;
             $f->description = __('By default this will be "Login".');
             $f->value = $data['loginButtonText'];
-            $f->columnWidth = 33;            
-            $fieldset->add($f);                                    
+            $f->columnWidth = 33;
+            $fieldset->add($f);
 
             $loginCss = trim($data['logincss']);
             if (empty($loginCss)) {
                 $a = self::getDefaultData();
                 $loginCss = $a['logincss'];
             }
-            $f = wire('modules')->get("InputfieldTextarea");
+            $f = $this->wire('modules')->get("InputfieldTextarea");
             $f->attr('name', 'logincss');
             $f->label = __('CSS');
             $f->description = __("You can change the style of the login form here.");
