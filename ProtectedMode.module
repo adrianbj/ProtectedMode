@@ -28,7 +28,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
             'summary' => 'Allows you to put your site into protected mode so that users must be logged in to access the front-end of the site.',
             'author' => 'Adrian Jones',
             'href' => 'http://modules.processwire.com/modules/protected-mode/',
-            'version' => '1.0.0',
+            'version' => '1.0.1',
             'permanent' => false,
             'autoload' => true,
             'singular' => true,
@@ -63,7 +63,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
                 "logincss" => "
 .protected-mode-container {
     width: 400px;
-    max-width: 100%;
+    max-width: calc(100vw - 20px);
     height: 150px;
     margin: auto;
     position: absolute;
@@ -176,6 +176,7 @@ input[type='password'] {
                 <!DOCTYPE html>
                     <head>
                         <meta charset='utf-8' />
+                        <meta name='viewport' content='width=device-width, initial-scale=1'>
                         <title>protected :: ".$this->wire('page')->title."</title>
                         <style>
                             ".$this->data['logincss']."
