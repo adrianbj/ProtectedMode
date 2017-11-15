@@ -3,13 +3,17 @@ Protected Mode
 
 Processwire module to prevent access to front-end of website unless logged in.
 
-Very handy during development to allow the clients and testers to view the site, but keep everyone else out.
+Very handy during development/maintenance to allow the clients and testers to view the site, but keep everyone else out.
 
-###Config Settings
+### Config Settings
 
 * Checkbox to enable/disable the protected mode
 * Textarea field for message to be displayed to visitors
+* Textarea field for message to be displayed to users who are not allowed
 * Textarea for CSS to style the login form if you wish
+* Various 503 settings
+* Text options for modifying placeholders etc
+* All text is translatable
 
 
 ## License
