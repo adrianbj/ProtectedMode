@@ -6,12 +6,8 @@
  *
  * Put your site in protected mode so that users must be logged in to access the front-end of the site.
  *
- * ProcessWire 2.x
- * Copyright (C) 2011 by Ryan Cramer
+ * Copyright (C) 2022 by Adrian Jones
  * Licensed under GNU/GPL v2, see LICENSE.TXT
- *
- * http://www.processwire.com
- * http://www.ryancramer.com
  *
  * Big thanks to Horst Nogajski (@horst-n) for significant code contributions related to the maintenance mode option including 503 / Retry-After headers.
  *
@@ -28,7 +24,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
             'summary' => 'Allows you to put your site into protected mode so that users must be logged in to access the front-end of the site.',
             'author' => 'Adrian Jones',
             'href' => 'http://modules.processwire.com/modules/protected-mode/',
-            'version' => '1.1.0',
+            'version' => '1.1.1',
             'permanent' => false,
             'autoload' => true,
             'singular' => true,
@@ -48,6 +44,7 @@ class ProtectedMode extends WireData implements Module, ConfigurableModule {
     static public function getDefaultData() {
             return array(
                 "protectedMode" => 0,
+                "hideLogin" => 0,
                 "roles" => array(),
                 "send503header" => 0,
                 "retryAfter_inputdate" => "Y-m-d",
@@ -185,7 +182,7 @@ input[type='password'] {
 
                 if($this->wire('session')->loginFailed) $this->wire('session')->loginFailed = false;
 
-                $event->return = "
+                $out = "
                 <!DOCTYPE html>
                     <head>
                         <meta charset='utf-8' />
@@ -198,19 +195,25 @@ input[type='password'] {
                     <body>
                         <div class='protected-mode-container'>
                             <form class='protectedModeForm' action='".htmlspecialchars($_SERVER['REQUEST_URI'])."' method='post'>
-                                    <legend>{$message}</legend>
-                                    <p>
-                                        <input type='text' name='username' placeholder='".($this->data['usernamePlaceholder'.$lang] ? $this->data['usernamePlaceholder'.$lang] : $this->data['usernamePlaceholder'])."'>
-                                        <input type='password' name='pass' placeholder='".($this->data['passwordPlaceholder'.$lang] ? $this->data['passwordPlaceholder'.$lang] : $this->data['passwordPlaceholder'])."'>
-                                    <p>
-                                    <p>
-                                        <button type='submit' name='login'>".($this->data['loginButtonText'.$lang] ? $this->data['loginButtonText'.$lang] : $this->data['loginButtonText'])."</button>
-                                    </p>
+                                    <legend>{$message}</legend>";
+                                    if(!$this->data['hideLogin']) {
+                                        $out .= "
+                                        <p>
+                                            <input type='text' name='username' placeholder='".($this->data['usernamePlaceholder'.$lang] ? $this->data['usernamePlaceholder'.$lang] : $this->data['usernamePlaceholder'])."'>
+                                            <input type='password' name='pass' placeholder='".($this->data['passwordPlaceholder'.$lang] ? $this->data['passwordPlaceholder'.$lang] : $this->data['passwordPlaceholder'])."'>
+                                        <p>
+                                        <p>
+                                            <button type='submit' name='login'>".($this->data['loginButtonText'.$lang] ? $this->data['loginButtonText'.$lang] : $this->data['loginButtonText'])."</button>
+                                        </p>";
+                                    }
+                            $out .= "
                             </form>
                         </div>
                     </body>
                 </html>
                 ";
+
+                $event->return = $out;
             }
         }
     }
@@ -255,13 +258,22 @@ input[type='password'] {
         $f->attr('name', 'protectedMode');
         $f->label = __('Protected / Maintenance Mode');
         $f->description = __('If enabled, only logged in users will be able to view the front-end of the site.');
+        $f->columnWidth = 50;
         $f->attr('checked', $data['protectedMode'] ? 'checked' : '' );
+        $wrapper->add($f);
+
+        $f = $this->wire('modules')->get("InputfieldCheckbox");
+        $f->attr('name', 'hideLogin');
+        $f->label = __('Hide Frontend Login');
+        $f->description = __('If enabled, the frontend login form won\t be displayed, so users will need to login via the admin URL.');
+        $f->columnWidth = 50;
+        $f->attr('checked', $data['hideLogin'] ? 'checked' : '' );
+        $f->showIf = "protectedMode=1";
         $wrapper->add($f);
 
         $f = $this->wire('modules')->get("InputfieldAsmSelect");
         $f->name = 'roles';
         $f->label = 'Allowed Roles';
-        $f->showIf = "page_protected=1";
         $f->description = __("To limit access to specific roles, select them here.\nTo allow all roles, leave none selected.");
         $f->notes = __("NB The users with these roles still need to log in to view the page.\nThis allows you to completely block the unselected roles from viewing the page, even if they are logged in.");
         foreach($this->wire('roles') as $role) {
