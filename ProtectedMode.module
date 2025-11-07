@@ -6,7 +6,7 @@
  *
  * Put your site in protected mode so that users must be logged in to access the front-end of the site.
  *
- * Copyright (C) 2022 by Adrian Jones
+ * Copyright (C) 2025 by Adrian Jones
  * Licensed under GNU/GPL v2, see LICENSE.TXT
  *
  * Big thanks to Horst Nogajski (@horst-n) for significant code contributions related to the maintenance mode option including 503 / Retry-After headers.
